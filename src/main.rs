@@ -21,7 +21,6 @@ fn main() {
         let solar_button: gtk::CheckButton = builder.get_object("SolarButton").unwrap();
         let latitude_input: gtk::Entry = builder.get_object("LatitudeInput").unwrap();
         let longitude_input: gtk::Entry = builder.get_object("LongitudeInput").unwrap();
-        let directory_input: gtk::Entry = builder.get_object("DirectoryInput").unwrap();
         let button: gtk::Button = builder.get_object("DoneButton").unwrap();
         let browse_button: gtk::Button = builder.get_object("BrowseButton").unwrap();
         let browse_done_button: gtk::Button = browse_builder.get_object("DoneButton").unwrap();
@@ -35,16 +34,66 @@ fn main() {
             browse_done_button.connect_clicked(move |_|{
                 let folderpath = browse_window_c.get_current_folder();
                 sender_clone.send(folderpath).unwrap();
-                browse_window_c.close();
+                browse_window_c.hide();
             
             });
         });
-
+           
         button.connect_clicked(move |_|{
+            let pathdir = receiver.try_recv();
+            let pathdir = match pathdir{
+                Ok(val) => val,
+                Err(TryRecvError::Empty) => None,
+                Err(err) => panic!("Error receiving from sender... {}", err),
+            };
+            let pathdir = match pathdir{
+                Some(val) => val,
+                None => std::path::PathBuf::new(),
+            };
             let is_solar = solar_button.get_active();
-            let directory = directory_input.get_text();
-            let latitude = latitude_input.get_text();
-            let longitude = longitude_input.get_text();
+            let directory = format!("{:?}", pathdir).to_string();
+            let latitude = latitude_input.get_text().to_string().parse::<f64>().unwrap_or(-600.6);
+            let longitude = longitude_input.get_text().to_string().parse::<f64>().unwrap_or(-600.6);
+            
+            if is_solar{
+                if latitude == -600.6{
+                    let popup_src = include_str!("../layout/LatLongDialog.glade");
+                    let popup_builder = gtk::Builder::from_string(popup_src);
+                    let popup_window: gtk::Window = popup_builder.get_object("MainWindow").unwrap();
+                    let OkButton: gtk::Button = popup_builder.get_object("OkButton").unwrap();
+                    popup_window.show_all();
+                    OkButton.connect_clicked(move |_|{
+                        popup_window.hide();
+                    });
+
+                }
+                else if longitude == -600.6{
+                    let popup_src = include_str!("../layout/LatLongDialog.glade");
+                    let popup_builder = gtk::Builder::from_string(popup_src);
+                    let popup_window: gtk::Window = popup_builder.get_object("MainWindow").unwrap();
+                    let OkButton: gtk::Button = popup_builder.get_object("OkButton").unwrap();
+                    popup_window.show_all();
+                    OkButton.connect_clicked(move |_|{
+                        popup_window.hide();
+                    });
+
+                }
+            }
+
+            if directory == format!("{:?}", "".to_string()){
+                let popup_src = include_str!("../layout/StringDialog.glade");
+                let popup_builder = gtk::Builder::from_string(popup_src);
+                let popup_window: gtk::Window = popup_builder.get_object("MainWindow").unwrap();
+                let OkButton: gtk::Button = popup_builder.get_object("OkButton").unwrap();
+                popup_window.show_all();
+                OkButton.connect_clicked(move |_|{
+                    popup_window.hide();
+                });
+            };
+            
+
+            
+
             let desktop_env = String::from_utf8(std::process::Command::new("sh")
                 .arg("-c")
                 .arg("echo $XDG_CURRENT_DESKTOP")
@@ -55,20 +104,10 @@ fn main() {
                     Ok(de) => de,
                     Err(error) => panic!("Problem finding desktop environment! {:?}", error),
                 }.trim().to_owned();
-
-            make(is_solar, latitude.to_string().parse::<f64>().expect("Please enter a latitude, if you are not using solar than input -1."), longitude.to_string().parse::<f64>().expect("Please enter a longitude, if you are not using solar than input -1."), directory.to_string(), desktop_env).expect("Failed to make service file.");
+            
+            
+            make(is_solar, latitude, longitude, directory, desktop_env).expect("Failed to make service file.");
             println!("put flowy.service into /etc/systemd/user/ then run systemctl --user start flowy.service");
-            let pathdir = receiver.try_recv();
-            let pathdir = match pathdir{
-                Ok(val) => val,
-                Err(TryRecvError::Empty) => None,
-                Err(err) => panic!("Error receiving from sender..."),
-            };
-            let pathdir = match pathdir{
-                Some(val) => val,
-                None => std::path::PathBuf::new(),
-              
-            };
             
         });
 
