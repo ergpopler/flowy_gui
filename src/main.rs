@@ -1,7 +1,7 @@
 use gio::prelude::*;
 use gtk::{prelude::*, Application};
 use std::{env, io::prelude::*};
-use std::sync::mpsc::channel;
+use std::sync::mpsc::{TryRecvError, channel};
 
 fn main() {
     let app = Application::new(
@@ -61,11 +61,13 @@ fn main() {
             let pathdir = receiver.try_recv();
             let pathdir = match pathdir{
                 Ok(val) => val,
-                Err(err) => panic!("what do i do here?"),
+                Err(TryRecvError::Empty) => None,
+                Err(err) => panic!("Error receiving from sender..."),
             };
             let pathdir = match pathdir{
                 Some(val) => val,
                 None => std::path::PathBuf::new(),
+              
             };
             
         });
