@@ -26,6 +26,7 @@ fn main() {
         let browse_button: gtk::Button = builder.get_object("BrowseButton").unwrap();
         let browse_done_button: gtk::Button = browse_builder.get_object("DoneButton").unwrap();
         let (sender, receiver) = channel();
+
 		browse_button.connect_clicked(move |_|{
             let browse_window_c: gtk::FileChooserDialog = browse_window.clone();
             browse_window_c.show_all();
@@ -57,15 +58,16 @@ fn main() {
 
             make(is_solar, latitude.to_string().parse::<f64>().expect("Please enter a latitude, if you are not using solar than input -1."), longitude.to_string().parse::<f64>().expect("Please enter a longitude, if you are not using solar than input -1."), directory.to_string(), desktop_env).expect("Failed to make service file.");
             println!("put flowy.service into /etc/systemd/user/ then run systemctl --user start flowy.service");
-            let pathdir = receiver.recv();
+            let pathdir = receiver.try_recv();
             let pathdir = match pathdir{
-                Ok(path) => path,
-                Err(error) => panic!("Problem finding directory via browse: {}", error),
+                Ok(val) => val,
+                Err(err) => panic!("what do i do here?"),
             };
             let pathdir = match pathdir{
                 Some(val) => val,
                 None => std::path::PathBuf::new(),
             };
+            
         });
 
         window.show_all();
